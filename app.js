@@ -36,7 +36,7 @@ const GAMES = {
 const LEVELS = ['쉬움', '보통', '어려움'];
 const TIMES = [[30, '30초'], [60, '60초'], [90, '90초'], [0, '자유']];
 const MAX_TEAMS = 8;
-const KEY = 'classroom-games-v2';   // v2: 몸으로 말해요 제시어 번호를 새로 매김
+const KEY = 'classroom-games-v3';   // v3: 제시어 id 가 번호에서 제시어 글자로 바뀜
 
 const $app = document.getElementById('app');
 let DATA = null;
@@ -621,7 +621,7 @@ function viewWords() {
       const st = S.status[x.id] || '';
       const sub = g === 'english' ? `<small lang="en">${esc(x.hint)}</small>` : '';
       return `<li><div class="w"><span>${esc(x.word)}</span>${sub}</div><span class="lv">${x.level}</span>
-        <button class="st st-${st || 'new'}" data-act="cycle" data-id="${x.id}">${STATUS_LABEL[st]}</button></li>`;
+        <button class="st st-${st || 'new'}" data-act="cycle" data-id="${esc(x.id)}">${STATUS_LABEL[st]}</button></li>`;
     }).join('');
     return `<section class="word-group"><h3>${esc(c)}</h3><ul class="word-list">${items}</ul></section>`;
   }).join('');
