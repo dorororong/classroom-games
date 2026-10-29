@@ -5,6 +5,8 @@ const GAMES = {
   body: {
     title: '몸으로 말해요', badge: '몸', kind: 'speed',
     tagline: '말·소리 없이 몸짓으로만 설명',
+    // 속담과 단어는 섞지 않고 묶음을 골라 따로 출제한다
+    sets: [['word', '단어', x => x.cat !== '속담'], ['proverb', '속담', x => x.cat === '속담']],
     rules: [
       '설명하는 사람만 화면을 보고, 같은 팀은 화면을 등지고 앉아요.',
       '말·소리·입모양·글자 쓰기 없이 몸짓으로만 설명해요. 카테고리는 먼저 알려줘도 돼요.',
@@ -34,7 +36,7 @@ const GAMES = {
 const LEVELS = ['쉬움', '보통', '어려움'];
 const TIMES = [[30, '30초'], [60, '60초'], [90, '90초'], [0, '자유']];
 const MAX_TEAMS = 8;
-const KEY = 'classroom-games-v1';
+const KEY = 'classroom-games-v2';   // v2: 몸으로 말해요 제시어 번호를 새로 매김
 
 const $app = document.getElementById('app');
 let DATA = null;
@@ -51,7 +53,7 @@ function defaults() {
     turn: 0,
     sound: true,
     status: {},         // 제시어 id → 'used'(사용) | 'hold'(보류·패스). 없으면 미사용
-    prefs: { body: pref(60), same: pref(0), english: pref(60) },
+    prefs: { body: { ...pref(60), set: 'word' }, same: pref(0), english: pref(60) },
   };
 }
 function load() {
@@ -72,14 +74,18 @@ function save() {
 
 // ---------- 도우미 ----------
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const catsOf = g => [...new Set(DATA[g].map(x => x.cat))];
+const catsOf = (g, list = DATA[g]) => [...new Set(list.map(x => x.cat))];
+function setItems(g) {
+  const set = GAMES[g].sets && GAMES[g].sets.find(s => s[0] === S.prefs[g].set);
+  return set ? DATA[g].filter(set[2]) : DATA[g];
+}
 const unusedCount = g => DATA[g].filter(x => !S.status[x.id]).length;
 const team = i => S.teams[i] || { name: '?', score: 0 };
 const fmt = sec => Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
 
 function pool(g) {
   const p = S.prefs[g];
-  return DATA[g].filter(x => !p.offCats.includes(x.cat) && !p.offLevels.includes(x.level) &&
+  return setItems(g).filter(x => !p.offCats.includes(x.cat) && !p.offLevels.includes(x.level) &&
     (!S.status[x.id] || (p.hold && S.status[x.id] === 'hold')));
 }
 function shuffle(a) {
@@ -407,11 +413,17 @@ function viewSetup() {
   const g = arg;
   const G = GAMES[g];
   const p = S.prefs[g];
+  const items = setItems(g);
+  const cats = catsOf(g, items);
   const unused = {};
-  for (const x of DATA[g]) if (!S.status[x.id]) unused[x.cat] = (unused[x.cat] || 0) + 1;
-  for (const c of catsOf(g)) unused[c] = unused[c] || 0;
-  const levels = LEVELS.filter(l => DATA[g].some(x => x.level === l));
-  const holdN = DATA[g].filter(x => S.status[x.id] === 'hold').length;
+  for (const x of items) if (!S.status[x.id]) unused[x.cat] = (unused[x.cat] || 0) + 1;
+  for (const c of cats) unused[c] = unused[c] || 0;
+  const levels = LEVELS.filter(l => items.some(x => x.level === l));
+  const holdN = items.filter(x => S.status[x.id] === 'hold').length;
+  const sets = G.sets ? `
+    <div class="segs sets">${G.sets.map(([k, label, test]) =>
+      `<button class="seg" aria-pressed="${p.set === k}" data-act="set" data-k="${k}">${label}
+        <small>${DATA[g].filter(x => test(x) && !S.status[x.id]).length}개</small></button>`).join('')}</div>` : '';
   const n = pool(g).length;
   const times = TIMES.map(([t, label]) =>
     `<button class="seg" aria-pressed="${p.time === t}" data-act="time" data-t="${t}">${label}</button>`).join('');
@@ -424,8 +436,9 @@ function viewSetup() {
   <section class="screen setup">
     ${topbar(G.title)}
     <ul class="rules">${G.rules.map(r => `<li>${r}</li>`).join('')}</ul>
-    <h3>카테고리 <small class="muted">숫자는 남은 제시어</small></h3>
-    ${chips('cat', catsOf(g), p.offCats, unused)}
+    ${sets}
+    ${cats.length > 1 ? `<h3>카테고리 <small class="muted">숫자는 남은 제시어</small></h3>
+    ${chips('cat', cats, p.offCats, unused)}` : ''}
     <h3>난이도</h3>
     ${chips('level', levels, p.offLevels)}
     <h3>${G.kind === 'speed' ? '제한시간' : '문제당 제한시간'}</h3>
@@ -660,7 +673,7 @@ const ACT = {
     const g = arg;
     const p = S.prefs[g];
     const key = d.group === 'cat' ? 'offCats' : 'offLevels';
-    const all = d.group === 'cat' ? catsOf(g) : LEVELS;
+    const all = d.group === 'cat' ? catsOf(g, setItems(g)) : LEVELS;
     if (!d.v) p[key] = [];
     else if (p[key].length === 0) p[key] = all.filter(v => v !== d.v);     // 전체 상태에서 누르면 그것만
     else {
@@ -670,6 +683,7 @@ const ACT = {
     save();
     render();
   },
+  set: d => { S.prefs[arg].set = d.k; S.prefs[arg].offCats = []; save(); render(); },
   time: d => { S.prefs[arg].time = +d.t; save(); render(); },
   turn: d => { S.turn = +d.i; save(); render(); },
   start: () => (GAMES[arg].kind === 'speed' ? startSpeed(arg) : startShout()),

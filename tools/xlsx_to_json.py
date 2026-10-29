@@ -22,6 +22,11 @@ def rows(ws):
         yield [str(v).strip() if isinstance(v, str) else v for v in r]
 
 
+def sheet(wb, prefix):
+    # 시트 이름 끝의 개수(_100 등)는 제시어를 늘리면 바뀌니 앞부분으로 찾는다
+    return next(ws for ws in wb if ws.title.startswith(prefix))
+
+
 def check_level(word, level):
     if level not in LEVELS:
         sys.exit(f"난이도 오류: {word!r} → {level!r} (쉬움/보통/어려움 중 하나)")
@@ -31,12 +36,12 @@ def main():
     wb = openpyxl.load_workbook(SRC, data_only=False)
 
     body = []
-    for no, cat, word, level, _status, judge, *_ in rows(wb["몸으로말해요_200"]):
+    for no, cat, word, level, _status, judge, *_ in rows(sheet(wb, "몸으로말해요")):
         check_level(word, level)
         body.append({"id": f"b{no}", "cat": cat, "word": word, "level": level, "judge": judge or ""})
 
     same = []
-    for no, cat, word, *_chars, level, _status, _url in rows(wb["이구동성_50"]):
+    for no, cat, word, *_chars, level, _status, _url in rows(sheet(wb, "이구동성")):
         check_level(word, level)
         # 첫째~넷째 열은 =MID() 수식이라 값 대신 정답에서 직접 나눈다
         chars = list(word.replace(" ", ""))
@@ -45,7 +50,7 @@ def main():
         same.append({"id": f"s{no}", "cat": cat, "word": word, "chars": chars, "level": level})
 
     english = []
-    for no, cat, word, level, _status, hint, aired, *_ in rows(wb["영어로설명하기_50"]):
+    for no, cat, word, level, _status, hint, aired, *_ in rows(sheet(wb, "영어로설명하기")):
         check_level(word, level)
         english.append({"id": f"e{no}", "cat": cat, "word": word, "level": level,
                         "hint": hint or "", "aired": "실제 제시어" in (aired or "")})
