@@ -278,7 +278,8 @@ body[data-game=""] .link { color: var(--text); }
   font-weight: 700; font-size: clamp(15px, 2.4vh, 26px);
 }
 .tag.lv { background: var(--surface); color: var(--muted); }
-.word { font-weight: 800; line-height: 1.15; letter-spacing: -.02em; max-width: 100%; }
+/* 실제 크기는 app.js fitWord() 가 화면에 맞춰 정한다. 아래 w-* 는 계산 전 기본값 */
+.word { font-weight: 800; line-height: 1.12; letter-spacing: -.02em; max-width: 100%; overflow-wrap: normal; word-break: keep-all; }
 .w-xl { font-size: min(22vw, 22vh); }
 .w-l { font-size: min(15vw, 17vh); }
 .w-m { font-size: min(10.5vw, 13vh); }

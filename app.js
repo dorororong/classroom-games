@@ -35,7 +35,7 @@ const GAMES = {
 };
 const LEVELS = ['쉬움', '보통', '어려움'];
 const TIMES = [[30, '30초'], [60, '60초'], [90, '90초'], [0, '자유']];
-const LIMITS = [[5, '5개'], [10, '10개'], [15, '15개'], [20, '20개'], [0, '제한 없음']];   // 정답+패스 합계
+const LIMITS = [[5, '5개'], [10, '10개'], [15, '15개'], [20, '20개'], [0, '제한 없음']];   // 모둠 하나가 받는 문제 수
 const MAX_TEAMS = 8;
 const KEY = 'classroom-games-v3';   // v3: 제시어 id 가 번호에서 제시어 글자로 바뀜
 
@@ -217,13 +217,15 @@ function countdown(labels, done, gap = 800) {
 }
 
 // ---------- 스피드 라운드 (몸으로 말해요 · 영어로 설명하기) ----------
+// 문제 수를 정하면 모둠마다 그 개수만 뽑아 두고, 패스한 문제는 그 안에서 맨 뒤로 돌려 다시 낸다
 function startSpeed(g) {
-  const deck = shuffle(pool(g));
+  const max = S.prefs[g].max;
+  const deck = shuffle(pool(g)).slice(0, max || undefined);
   if (!deck.length) return;
   stopRound();
   R = {
     game: g, kind: 'speed', team: S.turn, deck, cur: null, results: [],
-    time: S.prefs[g].time, max: S.prefs[g].max, ms: 0, paused: true, hidden: false, hint: false, countText: '',
+    time: S.prefs[g].time, max, total: deck.length, ms: 0, paused: true, hidden: false, hint: false, countText: '',
   };
   screen = 'play';
   wake(true);
@@ -236,7 +238,7 @@ function startSpeed(g) {
 function nextWord() {
   R.cur = R.deck.shift() || null;
   R.hint = false;
-  if (!R.cur) endRound('출제할 제시어를 모두 썼어요');
+  if (!R.cur) endRound(R.max ? `${R.total}문제 모두 정답!` : '출제할 제시어를 모두 썼어요');
 }
 function answer(ok) {
   if (!R || !R.cur || R.paused || R.countText) return;
@@ -245,7 +247,7 @@ function answer(ok) {
   if (ok) team(R.team).score++;
   save();
   (ok ? SFX.ok : SFX.pass)();
-  if (R.max && R.results.length >= R.max) { endRound(`${R.max}문제 끝!`); return; }
+  if (!ok && R.max) R.deck.push(R.cur);
   nextWord();
   render();
 }
@@ -255,6 +257,11 @@ function undo() {
   if (!r) return;
   if (r.prev) S.status[r.item.id] = r.prev; else delete S.status[r.item.id];
   if (r.ok) team(R.team).score--;
+  if (!r.ok && R.max) {   // 패스로 맨 뒤에 넣어 둔 것을 빼낸다
+    const i = R.deck.lastIndexOf(r.item);
+    if (i >= 0) R.deck.splice(i, 1);
+    if (R.cur === r.item) R.cur = null;
+  }
   if (R.cur) R.deck.unshift(R.cur);
   R.cur = r.item;
   save();
@@ -368,7 +375,29 @@ function render() {
   document.body.dataset.screen = screen;
   const html = { home: viewHome, setup: viewSetup, play: viewPlay, summary: viewSummary, words: viewWords, score: viewScore }[screen];
   $app.innerHTML = html ? html() : '';
+  fitWord();
 }
+
+// 제시어를 남은 자리에 들어가는 가장 큰 글씨로 맞춘다. 줄바꿈은 띄어쓰기에서만 (속담은 여러 줄)
+function fitWord() {
+  const el = document.querySelector('.word');
+  if (!el) return;
+  const stage = el.parentElement;
+  const kids = [...stage.children];
+  const gap = parseFloat(getComputedStyle(stage).rowGap) || 0;
+  const maxW = stage.clientWidth;
+  const maxH = stage.clientHeight - kids.reduce((h, c) => h + (c === el ? 0 : c.offsetHeight), 0) - gap * (kids.length - 1);
+  let lo = 16;
+  let hi = Math.max(lo + 1, Math.min(maxW, maxH, 420));
+  while (hi - lo > 1) {
+    const mid = (lo + hi) / 2;
+    el.style.fontSize = mid + 'px';
+    if (el.scrollWidth <= maxW && el.offsetHeight <= maxH) lo = mid; else hi = mid;
+  }
+  el.style.fontSize = lo + 'px';
+}
+window.addEventListener('resize', fitWord);
+if (document.fonts) document.fonts.ready.then(fitWord);   // 웹폰트가 늦게 오면 글자 폭이 달라진다
 
 function topbar(title, left = iconBtn('home', 'back', '처음으로')) {
   return `<header class="topbar">${left}<h1 class="topbar-title">${title}</h1><div class="tools">${toolButtons()}</div></header>`;
@@ -445,7 +474,7 @@ function viewSetup() {
     ${chips('level', levels, p.offLevels)}
     <h3>${G.kind === 'speed' ? '제한시간' : '문제당 제한시간'}</h3>
     <div class="segs">${times}</div>
-    ${G.kind === 'speed' ? `<h3>문제 수 <small class="muted">시간이 남아도 이만큼 풀면(정답+패스) 끝나요</small></h3>
+    ${G.kind === 'speed' ? `<h3>문제 수 <small class="muted">모둠마다 이만큼만 출제 · 패스한 문제는 뒤로 돌아가 다시 나와요</small></h3>
     <div class="segs">${LIMITS.map(([m, label]) =>
       `<button class="seg" aria-pressed="${p.max === m}" data-act="max" data-m="${m}">${label}</button>`).join('')}</div>` : ''}
     ${G.kind === 'shout' ? '<p class="hint muted">‘하나, 둘, 셋!’을 처음 외친 뒤부터 시간이 흘러요.</p>' : ''}
@@ -495,7 +524,7 @@ function viewSpeed() {
   <section class="screen play">
     <header class="topbar">
       ${iconBtn('end', 'close', '라운드 끝내기')}
-      <div class="round-info"><span>${esc(team(R.team).name)}</span><b>+${got}</b>${R.max ? `<small>${R.results.length} / ${R.max}문제</small>` : ''}</div>
+      <div class="round-info"><span>${esc(team(R.team).name)}</span><b>+${got}</b>${R.max ? `<small>정답 ${got} / ${R.total}</small>` : ''}</div>
       <div class="tools">${toolButtons()}</div>
     </header>
     <button id="timer" class="timer ${R.time && timerSec() <= 10 ? 'low' : ''}" data-act="pause" title="눌러서 일시정지">${fmt(timerSec())}</button>
@@ -576,14 +605,17 @@ function viewSummary() {
   let body;
   if (R.kind === 'speed') {
     const got = R.results.filter(r => r.ok).length;
-    const rows = R.results.map((r, i) => `
+    // 같은 제시어가 패스 뒤 다시 나왔을 수 있으니 제시어마다 마지막 결과 한 줄
+    const last = new Map();
+    R.results.forEach((r, i) => last.set(r.item.id, i));
+    const rows = [...last.values()].map(i => [R.results[i], i]).map(([r, i]) => `
       <li><button class="result ${r.ok ? 'is-ok' : 'is-pass'}" data-act="flip-result" data-i="${i}">
         <span>${esc(r.item.word)}</span><b>${r.ok ? '정답' : '패스'}</b></button></li>`).join('');
     const next = team(S.turn);
     body = `
       <p class="sum-team">${esc(team(R.team).name)}</p>
       <p class="sum-score">+${got}<small>점</small></p>
-      <p class="muted">${R.results.length}문제 중 ${got}개 정답 · 결과를 누르면 정답↔패스가 바뀌어요</p>
+      <p class="muted">${last.size}문제 중 ${got}개 정답 · 결과를 누르면 정답↔패스가 바뀌어요</p>
       <ol class="results">${rows || '<li class="muted">푼 문제가 없어요</li>'}</ol>
       <div class="sum-actions">
         ${pool(R.game).length ? `<button class="btn primary big" data-act="start-next">다음 차례: ${esc(next.name)} 시작</button>` : '<p class="muted">출제 가능한 제시어가 없어요.</p>'}
