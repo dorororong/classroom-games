@@ -131,9 +131,9 @@ body:not([data-game]) .btn.primary, body[data-game=""] .btn.primary { color: var
 .btn.ok:hover { background: color-mix(in srgb, var(--ok) 88%, #000); }
 .btn.pass { background: var(--surface-2); }
 .btn.huge {
-  min-height: clamp(76px, 13vh, 150px);
-  font-size: clamp(24px, 4.4vh, 46px);
-  border-radius: 18px;
+  min-height: clamp(56px, 8vh, 84px);
+  font-size: clamp(19px, 2.8vh, 28px);
+  border-radius: 14px;
 }
 .link {
   border: 0; background: none; padding: 6px 0;
@@ -248,21 +248,24 @@ body[data-game=""] .link { color: var(--text); }
 .pool-n b { color: var(--text); font-size: 18px; }
 
 /* ---------- 진행 화면 ---------- */
-.play { height: 100dvh; padding-bottom: max(12px, env(safe-area-inset-bottom)); gap: 8px; }
-.round-info { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 10px; font-size: 20px; font-weight: 700; }
-.round-info b { color: var(--g); font-size: 24px; }
+/* 제시어만 크게: 나머지(타이머·태그·버튼)는 작고 흐리게 두고 남은 자리를 fitWord() 가 제시어에 준다 */
+.play { height: 100dvh; padding-bottom: max(10px, env(safe-area-inset-bottom)); gap: 6px; }
+.play .topbar { min-height: 48px; }
+.round-info { flex: 1; display: flex; align-items: baseline; justify-content: center; gap: 8px; font-size: 16px; font-weight: 700; }
+.round-info b { color: var(--g); font-size: 18px; }
 .round-info small { color: var(--muted); font-weight: 500; }
 .timer {
   align-self: center;
   border: 0; background: none;
-  font-size: clamp(40px, 9vh, 96px);
-  font-weight: 800;
+  font-size: clamp(26px, 4.5vh, 48px);
+  font-weight: 700;
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   line-height: 1;
   padding: 4px 16px;
   border-radius: var(--radius);
 }
-.timer.small { font-size: clamp(32px, 6vh, 64px); }
+.timer.small { font-size: clamp(24px, 4vh, 44px); }
 .timer.low { color: var(--body); }
 .stage {
   flex: 1;
@@ -273,9 +276,9 @@ body[data-game=""] .link { color: var(--text); }
 }
 .tags { display: flex; gap: 8px; }
 .tag {
-  padding: 4px 14px; border-radius: 999px;
+  padding: 2px 10px; border-radius: 999px;
   background: var(--g-soft); color: var(--g);
-  font-weight: 700; font-size: clamp(15px, 2.4vh, 26px);
+  font-weight: 700; font-size: clamp(12px, 1.6vh, 18px);
 }
 .tag.lv { background: var(--surface); color: var(--muted); }
 /* 실제 크기는 app.js fitWord() 가 화면에 맞춰 정한다. 아래 w-* 는 계산 전 기본값 */
@@ -284,9 +287,9 @@ body[data-game=""] .link { color: var(--text); }
 .w-l { font-size: min(15vw, 17vh); }
 .w-m { font-size: min(10.5vw, 13vh); }
 .w-s { font-size: min(8vw, 10vh); }
-.judge { font-size: clamp(14px, 2vh, 20px); }
+.judge { font-size: clamp(12px, 1.6vh, 16px); }
 .hint-box { min-height: 2.6em; display: grid; justify-items: center; gap: 2px; }
-.hint-box p { font-size: clamp(16px, 2.6vh, 28px); max-width: 32em; }
+.hint-box p { font-size: clamp(14px, 2.2vh, 24px); max-width: 32em; }
 .paused, .covered {
   width: min(100%, 720px);
   flex: 1;
@@ -298,7 +301,8 @@ body[data-game=""] .link { color: var(--text); }
 }
 .paused b, .covered b { font-size: clamp(28px, 6vh, 64px); }
 .paused span, .covered span { color: var(--muted); font-size: clamp(16px, 2.4vh, 24px); }
-.controls { display: grid; gap: 10px; }
+.controls { display: grid; gap: 8px; }
+.sub-controls .btn { min-height: 36px; font-size: 14px; font-weight: 600; color: var(--muted); border-width: 1px; }
 .sub-controls, .main-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .main-controls .btn.ok { order: 2; }
 .keys { font-size: 13px; text-align: center; display: none; }
