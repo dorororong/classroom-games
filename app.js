@@ -35,6 +35,7 @@ const GAMES = {
 };
 const LEVELS = ['쉬움', '보통', '어려움'];
 const TIMES = [[30, '30초'], [60, '60초'], [90, '90초'], [0, '자유']];
+const LIMITS = [[5, '5개'], [10, '10개'], [15, '15개'], [20, '20개'], [0, '제한 없음']];   // 정답+패스 합계
 const MAX_TEAMS = 8;
 const KEY = 'classroom-games-v3';   // v3: 제시어 id 가 번호에서 제시어 글자로 바뀜
 
@@ -47,7 +48,7 @@ let arg = null;         // 화면별 인자 (설정 화면의 게임, 목록 화
 
 // ---------- 저장 ----------
 function defaults() {
-  const pref = time => ({ offCats: [], offLevels: [], time, hold: false });
+  const pref = time => ({ offCats: [], offLevels: [], time, max: 0, hold: false });
   return {
     teams: [1, 2, 3, 4].map(n => ({ name: n + '팀', score: 0 })),
     turn: 0,
@@ -222,7 +223,7 @@ function startSpeed(g) {
   stopRound();
   R = {
     game: g, kind: 'speed', team: S.turn, deck, cur: null, results: [],
-    time: S.prefs[g].time, ms: 0, paused: true, hidden: false, hint: false, countText: '',
+    time: S.prefs[g].time, max: S.prefs[g].max, ms: 0, paused: true, hidden: false, hint: false, countText: '',
   };
   screen = 'play';
   wake(true);
@@ -244,6 +245,7 @@ function answer(ok) {
   if (ok) team(R.team).score++;
   save();
   (ok ? SFX.ok : SFX.pass)();
+  if (R.max && R.results.length >= R.max) { endRound(`${R.max}문제 끝!`); return; }
   nextWord();
   render();
 }
@@ -443,6 +445,9 @@ function viewSetup() {
     ${chips('level', levels, p.offLevels)}
     <h3>${G.kind === 'speed' ? '제한시간' : '문제당 제한시간'}</h3>
     <div class="segs">${times}</div>
+    ${G.kind === 'speed' ? `<h3>문제 수 <small class="muted">시간이 남아도 이만큼 풀면(정답+패스) 끝나요</small></h3>
+    <div class="segs">${LIMITS.map(([m, label]) =>
+      `<button class="seg" aria-pressed="${p.max === m}" data-act="max" data-m="${m}">${label}</button>`).join('')}</div>` : ''}
     ${G.kind === 'shout' ? '<p class="hint muted">‘하나, 둘, 셋!’을 처음 외친 뒤부터 시간이 흘러요.</p>' : ''}
     ${turn}
     <label class="check"><input type="checkbox" data-act="hold" ${p.hold ? 'checked' : ''}>
@@ -490,7 +495,7 @@ function viewSpeed() {
   <section class="screen play">
     <header class="topbar">
       ${iconBtn('end', 'close', '라운드 끝내기')}
-      <div class="round-info"><span>${esc(team(R.team).name)}</span><b>+${got}</b></div>
+      <div class="round-info"><span>${esc(team(R.team).name)}</span><b>+${got}</b>${R.max ? `<small>${R.results.length} / ${R.max}문제</small>` : ''}</div>
       <div class="tools">${toolButtons()}</div>
     </header>
     <button id="timer" class="timer ${R.time && timerSec() <= 10 ? 'low' : ''}" data-act="pause" title="눌러서 일시정지">${fmt(timerSec())}</button>
@@ -685,6 +690,7 @@ const ACT = {
   },
   set: d => { S.prefs[arg].set = d.k; S.prefs[arg].offCats = []; save(); render(); },
   time: d => { S.prefs[arg].time = +d.t; save(); render(); },
+  max: d => { S.prefs[arg].max = +d.m; save(); render(); },
   turn: d => { S.turn = +d.i; save(); render(); },
   start: () => (GAMES[arg].kind === 'speed' ? startSpeed(arg) : startShout()),
   'start-next': () => (R.kind === 'speed' ? startSpeed(R.game) : startShout()),
